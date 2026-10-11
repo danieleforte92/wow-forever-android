@@ -99,14 +99,16 @@ object WowClientDownloader {
             remoteBuildConfig = remoteBuildKey,
             remoteCdnConfig = remoteRow["CDNConfig"].orEmpty(),
             remoteCdnHosts = (cdnsRow?.get("Hosts") ?: row["CDN Hosts"])?.let(::splitHosts).orEmpty(),
-            remoteCdnServers = secureCdnServers(cdnsRow?.get("Servers")).ifEmpty { defaultCdnServers(region) },
+            remoteCdnServers = secureCdnServers(cdnsRow?.get("Servers"))
+                .ifEmpty { secureCdnServers(row["CDN Servers"]) }
+                .ifEmpty { defaultCdnServers(region) },
             remoteCdnPath = cdnsRow?.get("Path") ?: row["CDN Path"] ?: DEFAULT_CDN_PATH,
         )
     }
 
     fun updateGame(gameRoot: File, target: VersionCheckResult, onStatus: (String) -> Unit) {
         val cdn = Cdn(
-            servers = target.remoteCdnServers.ifEmpty { defaultCdnServers(DEFAULT_REGION) },
+            servers = target.remoteCdnServers,
             path = target.remoteCdnPath.ifEmpty { DEFAULT_CDN_PATH },
         )
         onStatus("Fetching build ${target.remoteVersion} manifest...")
@@ -136,8 +138,9 @@ object WowClientDownloader {
         val latest = checkVersion(gameRoot)
         if (latest != null && latest.remoteBuildConfig.isNotBlank()) return updateGame(gameRoot, latest, onStatus)
 
+        val region = normalizeRegion(row["Branch"])
         val cdn = Cdn(
-            servers = defaultCdnServers(normalizeRegion(row["Branch"])),
+            servers = secureCdnServers(row["CDN Servers"]).ifEmpty { defaultCdnServers(region) },
             path = row.getValue("CDN Path"),
         )
         onStatus("Reading build ${row["Version"].orEmpty()} manifest...")
@@ -440,9 +443,10 @@ object WowClientDownloader {
         val normalized = normalizeRegion(region)
         val regional = when (normalized) {
             "eu", "kr" -> "https://$normalized.cdn.blizzard.com"
-            else -> "https://us.cdn.blizzard.com"
+            "us", "tw" -> "https://us.cdn.blizzard.com"
+            else -> null
         }
-        return listOf(regional, "https://level3.ssl.blizzard.com")
+        return listOfNotNull(regional, "https://level3.ssl.blizzard.com")
     }
 
     private fun splitHosts(hosts: String) = hosts.split(" ").filter { it.isNotBlank() }
