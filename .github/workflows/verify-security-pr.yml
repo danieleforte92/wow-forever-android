@@ -23,6 +23,9 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "ndk;27.3.13750724"
 
+      - name: Configure local Android SDK
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+
       - name: Run unit tests
         run: ./gradlew --no-daemon testModernDebugUnitTest
 
