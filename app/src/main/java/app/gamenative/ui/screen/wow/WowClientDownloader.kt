@@ -14,9 +14,9 @@ import java.util.zip.Inflater
 import timber.log.Timber
 
 object WowClientDownloader {
-    const val FLAVOR_DIR = "_classic_beta_"
-    const val EXE_NAME = "WowB-ARM64.exe"
-    const val TARGET_PRODUCT = "wow_classic_beta"
+    const val FLAVOR_DIR = "_forever_"
+    const val EXE_NAME = "Wow-ARM64.exe"
+    const val TARGET_PRODUCT = "wowf"
     const val BUILD_INFO = ".build.info"
     private const val PLATFORM_ARCH = "arm64"
     private const val EXCLUDED_ARCH = "x86_64"
