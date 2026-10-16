@@ -30,6 +30,12 @@ jobs:
       - name: Configure local Android SDK
         run: echo "sdk.dir=$ANDROID_HOME" > local.properties
 
+      - name: Fetch and verify bundled Proton, DXVK and Turnip components
+        run: bash tools/fetch_components.sh
+
+      - name: Verify Proton archive is present
+        run: test -s app/src/main/assets/bundled_components/proton-11.0-90624-arm64ec.wcp
+
       - name: Run unit tests
         run: ./gradlew --no-daemon testModernDebugUnitTest
 
