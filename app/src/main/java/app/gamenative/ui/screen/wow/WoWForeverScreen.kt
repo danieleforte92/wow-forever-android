@@ -958,7 +958,7 @@ private fun containerConfig(gameRoot: File, gpu: GpuProfile): JSONObject {
 }
 
 private val CONFIG_DEFAULTS = linkedMapOf(
-    "portal" to "\"test\"",
+    "portal" to "\"EU\"",
     "agentUID" to "\"$TARGET_PRODUCT\"",
     "gxApi" to "\"D3D11\"",
     "textLocale" to "\"enUS\"",
@@ -1004,6 +1004,8 @@ private val LEGACY_CONFIG_VALUES = mapOf(
 )
 
 private fun ensureGameConfig(root: File) {
+    val portal = "\"${WowClientDownloader.portalForBuildInfo(File(root, BUILD_INFO))}\""
+    val defaults = CONFIG_DEFAULTS.toMutableMap().apply { put("portal", portal) }
     val flavorDir = File(root, FLAVOR_DIR)
     flavorDir.mkdirs()
     val flavorInfo = File(flavorDir, ".flavor.info")
@@ -1013,7 +1015,7 @@ private fun ensureGameConfig(root: File) {
     val configWtf = File(flavorDir, "WTF/Config.wtf")
     if (!configWtf.exists()) {
         configWtf.parentFile?.mkdirs()
-        configWtf.writeText(CONFIG_DEFAULTS.entries.joinToString("\n") { "SET ${it.key} ${it.value}" } + "\n")
+        configWtf.writeText(defaults.entries.joinToString("\n") { "SET ${it.key} ${it.value}" } + "\n")
         return
     }
 
@@ -1026,11 +1028,13 @@ private fun ensureGameConfig(root: File) {
         existingKeys.add(key)
         val forcedKey = FORCED_CONFIG_KEYS.firstOrNull { it.equals(key, ignoreCase = true) }
         when {
-            forcedKey != null && value != CONFIG_DEFAULTS.getValue(forcedKey) -> "SET $forcedKey ${CONFIG_DEFAULTS.getValue(forcedKey)}"
-            LEGACY_CONFIG_VALUES[key] == value -> "SET $key ${CONFIG_DEFAULTS.getValue(key)}"
+            key.equals("portal", ignoreCase = true) && value.trim().trim('"').equals("test", ignoreCase = true) ->
+                "SET portal $portal"
+            forcedKey != null && value != defaults.getValue(forcedKey) -> "SET $forcedKey ${defaults.getValue(forcedKey)}"
+            LEGACY_CONFIG_VALUES[key] == value -> "SET $key ${defaults.getValue(key)}"
             else -> line
         }
-    } + CONFIG_DEFAULTS.filterKeys { it !in existingKeys }.map { (k, v) -> "SET $k $v" }
+    } + defaults.filterKeys { key -> existingKeys.none { it.equals(key, ignoreCase = true) } }.map { (k, v) -> "SET $k $v" }
 
     if (updated != original) {
         configWtf.writeText(updated.joinToString("\n") + "\n")
