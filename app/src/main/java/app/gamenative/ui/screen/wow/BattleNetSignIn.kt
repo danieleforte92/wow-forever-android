@@ -116,7 +116,7 @@ object BattleNetSignIn {
     private const val KEY_EMAIL = "email"
     private const val KEY_PASSWORD = "password"
     private const val LOGIN_FILE = "login.txt"
-    private const val LOGIN_FILE_TIMEOUT_MS = 30_000L
+    private const val LOGIN_FILE_TIMEOUT_MS = 120_000L
 }
 
 @Composable
