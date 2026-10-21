@@ -413,6 +413,16 @@ object WowClientDownloader {
 
     private fun psvHeader(line: String) = line.split("|").map { it.substringBefore("!") }
 
+    // The stress-test game uses the production regional portal to list its realms.
+    // The old launcher default ("test") exposes unrelated Alpha/Blizzcon environments.
+    internal fun portalForBuildInfo(buildInfo: File): String =
+        when (readBuildInfo(buildInfo)?.get("Branch")?.trim()?.lowercase()) {
+            "eu" -> "EU"
+            "kr" -> "KR"
+            "tw" -> "TW"
+            else -> "US"
+        }
+
     private fun normalizeRegion(region: String?): String {
         val normalized = region?.trim()?.lowercase().orEmpty()
         return normalized.takeIf { it.matches(Regex("[a-z]{2}")) } ?: DEFAULT_REGION
