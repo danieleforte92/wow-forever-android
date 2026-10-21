@@ -902,10 +902,6 @@ private fun prepareLaunch(context: Context, gameRoot: File, gpu: GpuProfile, onS
     }
 
     val arm64Exe = File(gameRoot, "$FLAVOR_DIR/$EXE_NAME")
-    BattleNetSignIn.load(context)?.let { login ->
-        BattleNetSignIn.writeLoginFile(gameRoot, login)
-        BattleNetSignIn.startLoginWatcher(gameRoot)
-    }
     if (!arm64Exe.exists()) {
         try {
             WowClientDownloader.download(gameRoot, onStatus)
@@ -927,6 +923,13 @@ private fun prepareLaunch(context: Context, gameRoot: File, gpu: GpuProfile, onS
         container.saveData()
     }
     check(containerManager.hasContainer(CONTAINER_ID)) { "Container creation failed. Check system storage and logs." }
+
+    // Write temporary plaintext credentials only when the client is ready to launch.
+    // Preparing Proton and downloading WoW files can take longer than the cleanup timeout.
+    BattleNetSignIn.load(context)?.let { login ->
+        BattleNetSignIn.writeLoginFile(gameRoot, login)
+        BattleNetSignIn.startLoginWatcher(gameRoot)
+    }
     return CONTAINER_ID
 }
 
