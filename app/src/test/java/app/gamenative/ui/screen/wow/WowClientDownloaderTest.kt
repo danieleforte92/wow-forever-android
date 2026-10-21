@@ -86,6 +86,21 @@ class WowClientDownloaderTest {
 
 
     @Test
+    fun portalForBuildInfo_usesEuRegionForStressTest() {
+        val root = tempFolder.newFolder("eu_stress_test")
+        File(root, ".build.info").writeText(
+            "Branch!STRING:0|Active!DEC:1|Product!STRING:0\n" +
+            "eu|1|wowf\n",
+        )
+        assertEquals("EU", WowClientDownloader.portalForBuildInfo(File(root, ".build.info")))
+    }
+
+    @Test
+    fun portalForBuildInfo_defaultsToUsWhenRegionMissing() {
+        assertEquals("US", WowClientDownloader.portalForBuildInfo(File(tempFolder.root, "missing")))
+    }
+
+    @Test
     fun versionServiceBase_usesRegionalHttpsEndpoint() {
         assertEquals(
             "https://eu.version.battle.net/v2/products/wowf",
