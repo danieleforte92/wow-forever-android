@@ -1085,10 +1085,6 @@ private fun prepareLaunch(context: Context, gameRoot: File, gpu: GpuProfile, scr
     }
 
     val arm64Exe = File(gameRoot, "$FLAVOR_DIR/$EXE_NAME")
-    BattleNetSignIn.load(context)?.let { login ->
-        BattleNetSignIn.writeLoginFile(gameRoot, login)
-        BattleNetSignIn.startLoginWatcher(gameRoot)
-    }
     if (!arm64Exe.exists()) {
         try {
             WowClientDownloader.download(gameRoot, onStatus)
@@ -1110,6 +1106,12 @@ private fun prepareLaunch(context: Context, gameRoot: File, gpu: GpuProfile, scr
         container.saveData()
     }
     check(containerManager.hasContainer(CONTAINER_ID)) { "Container creation failed. Check system storage and logs." }
+
+    // Do not expose plaintext login credentials during download or Wine setup.
+    BattleNetSignIn.load(context)?.let { login ->
+        BattleNetSignIn.writeLoginFile(gameRoot, login)
+        BattleNetSignIn.startLoginWatcher(gameRoot)
+    }
     return CONTAINER_ID
 }
 
@@ -1202,13 +1204,18 @@ private fun ensureGameConfig(root: File, screenSize: String) {
 
     val gxApi = "SET gxApi ${CONFIG_DEFAULTS.getValue("gxApi")}"
     val original = configWtf.readLines()
-    val portal = "SET portal \"${portalOf(root)}\"".takeIf { original.none { it.startsWith("SET portal ", ignoreCase = true) } }
+    // Upgrade the obsolete Stress Test portal, but preserve any other manually chosen region.
+    val existingPortal = original.firstOrNull { it.startsWith("SET portal ", ignoreCase = true) }
+    val needsPortal = existingPortal == null || existingPortal.substringAfterLast(' ').trim('"').equals("test", ignoreCase = true)
+    val portal = "SET portal \"${portalOf(root)}\"".takeIf { needsPortal }
     val staleResolutionKeys = RESOLUTION_KEYS.filter { key ->
         val line = original.firstOrNull { it.startsWith("SET $key ", ignoreCase = true) }
         line == null || !fitsScreen(line.substringAfter(" ").substringAfter(" ").trim('"'), screenSize)
     }
     val updated = original.filterNot { line ->
-        line.startsWith("SET gxApi ", ignoreCase = true) || staleResolutionKeys.any { line.startsWith("SET $it ", ignoreCase = true) }
+        line.startsWith("SET gxApi ", ignoreCase = true) ||
+            staleResolutionKeys.any { line.startsWith("SET $it ", ignoreCase = true) } ||
+            (portal != null && line.startsWith("SET portal ", ignoreCase = true))
     } + gxApi + staleResolutionKeys.map { "SET $it \"$screenSize\"" } + listOfNotNull(portal)
     if (original.none { it == gxApi } || staleResolutionKeys.isNotEmpty() || portal != null) {
         configWtf.writeText(updated.joinToString("\n") + "\n")
