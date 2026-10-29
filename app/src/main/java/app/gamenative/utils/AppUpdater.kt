@@ -15,6 +15,8 @@ import timber.log.Timber
 
 object AppUpdater {
     private const val RELEASES_URL = "https://api.github.com/repos/jaredgei/wow-forever-android/releases/latest"
+    // Experimental fork APKs are not compatible with upstream release signing or custom patches.
+    private const val ENABLE_UPSTREAM_UPDATES = false
 
     data class Release(
         val version: String,
@@ -66,6 +68,7 @@ object AppUpdater {
     }.getOrNull()
 
     suspend fun check(currentVersion: String = BuildConfig.VERSION_NAME): Release? = withContext(Dispatchers.IO) {
+        if (!ENABLE_UPSTREAM_UPDATES) return@withContext null
         runCatching {
             val request = Request.Builder()
                 .url(RELEASES_URL)
