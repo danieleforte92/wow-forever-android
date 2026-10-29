@@ -1,6 +1,7 @@
 package app.gamenative.ui.screen.wow
 
 import android.content.Context
+import android.os.FileObserver
 import android.util.Base64
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -24,10 +25,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import app.gamenative.Crypto
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.io.File
@@ -84,18 +86,31 @@ object BattleNetSignIn {
 
     fun startLoginWatcher(gameRoot: File) {
         CoroutineScope(Dispatchers.IO).launch {
-            val hotfixLog = File(File(gameRoot, WowClientDownloader.FLAVOR_DIR), "Logs/Hotfix.log")
-            hotfixLog.delete()
-            // A fresh install's first boot streams assets and plays the intro cinematic before reaching the login screen.
-            val deadline = System.currentTimeMillis() + 600_000L
-            while (isActive && System.currentTimeMillis() < deadline) {
-                delay(1000L)
-                if (hotfixLog.exists() && hotfixLog.length() > 50_000L) {
-                    removeLoginFile(gameRoot)
-                    return@launch
+            val flavorDir = File(gameRoot, WowClientDownloader.FLAVOR_DIR)
+            val loginFile = File(flavorDir, "login.txt")
+            if (!loginFile.isFile) return@launch
+
+            val consumed = CompletableDeferred<Unit>()
+            val observer = object : FileObserver(flavorDir, OPEN or CLOSE_NOWRITE) {
+                private var loginOpened = false
+
+                override fun onEvent(event: Int, path: String?) {
+                    if (path != "login.txt") return
+                    when {
+                        event and OPEN != 0 -> loginOpened = true
+                        loginOpened && event and CLOSE_NOWRITE != 0 -> consumed.complete(Unit)
+                    }
                 }
             }
-            removeLoginFile(gameRoot)
+
+            observer.startWatching()
+            try {
+                // A first boot can stream assets or run a cinematic before the login file is read.
+                withTimeoutOrNull(600_000L) { consumed.await() }
+            } finally {
+                observer.stopWatching()
+                removeLoginFile(gameRoot)
+            }
         }
     }
 
