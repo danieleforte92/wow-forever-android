@@ -1,0 +1,51 @@
+name: Build Odin 3 v2.3.0 APK
+
+on:
+  push:
+    branches:
+      - integration/v2.3.0-odin3
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android SDK components
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "ndk;27.3.13750724"
+
+      - name: Configure local Android SDK
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - name: Fetch and verify bundled Proton, DXVK and Turnip components
+        run: bash tools/fetch_components.sh
+
+      - name: Verify Proton archive is present
+        run: test -s app/src/main/assets/bundled_components/proton-11.0-90624-arm64ec.wcp
+
+      - name: Run unit tests
+        run: ./gradlew --no-daemon testModernDebugUnitTest
+
+      - name: Build debug APK
+        run: ./gradlew --no-daemon assembleModernDebug
+
+      - name: Upload Odin 3 debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: wowf-v2.3.0-odin3-debug
+          path: app/build/outputs/apk/modern/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
