@@ -13,6 +13,30 @@ class WowClientDownloaderTest {
     val tempFolder = TemporaryFolder()
 
     @Test
+    fun versionServiceBase_usesRegionalHttpsEndpoints() {
+        assertEquals("https://eu.version.battle.net/v2/products/wowf", WowClientDownloader.versionServiceBase("eu"))
+        assertEquals("https://us.version.battle.net/v2/products/wowf", WowClientDownloader.versionServiceBase("US"))
+        assertEquals("https://cn.version.battlenet.com.cn/v2/products/wowf", WowClientDownloader.versionServiceBase("cn"))
+        assertEquals("https://us.version.battle.net/v2/products/wowf", WowClientDownloader.versionServiceBase("../invalid"))
+    }
+
+    @Test
+    fun secureCdnServers_excludesPlaintextAndRemovesQueryOptions() {
+        assertEquals(
+            listOf("https://us.cdn.blizzard.com", "https://level3.ssl.blizzard.com"),
+            WowClientDownloader.secureCdnServers(
+                "http://level3.blizzard.com/?maxhosts=8 https://us.cdn.blizzard.com/?maxhosts=4 " +
+                    "https://level3.ssl.blizzard.com/?fallback=1 https://us.cdn.blizzard.com/?other=1"
+            )
+        )
+        assertEquals(emptyList<String>(), WowClientDownloader.secureCdnServers("http://example.com"))
+        assertEquals(
+            listOf("https://eu.cdn.blizzard.com", "https://level3.ssl.blizzard.com"),
+            WowClientDownloader.defaultCdnServers("eu")
+        )
+    }
+
+    @Test
     fun readBuildInfo_parsesValidPipeDelimitedFile() {
         val root = tempFolder.newFolder("wow")
         val buildInfo = File(root, ".build.info")
